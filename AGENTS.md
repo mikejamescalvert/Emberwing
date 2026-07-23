@@ -80,11 +80,23 @@ combineInput(keys, touch, pointer)      // core/input  -> {pitch,roll,boost,flap
 __emberwing.start();               // dismiss the start screen
 __emberwing.press('Space', true);  // hold a key (KeyW/KeyS/KeyA/KeyD/Space/ShiftLeft)
 __emberwing.tick(0.05, 60);        // advance 60 fixed 50ms steps, returns a snapshot
-__emberwing.snapshot();            // { pos, speed, yaw, wingL/R, cam, breath, kills, ... }
+__emberwing.snapshot();            // { pos, speed, yaw, wingL/R, cam, health, breath, xp, stage, ... }
+__emberwing.addXp(20);             // grow the dragon (test growth stages)
+__emberwing.burstHere();           // drop emberstone at the dragon (test collection)
+__emberwing.damage(200);           // drain vitality -> death/run-over
+__emberwing.restart();             // reset the run
+__emberwing.portraitDataUrl('3q'); // offscreen PNG of the dragon ('3q'|'side'|'front'|'top')
 ```
 
 `tick()` is decoupled from `requestAnimationFrame`, so you can verify flight,
 wings, camera, and combat even when a preview pane isn't compositing frames.
+
+**Seeing the render headlessly.** When the preview pane won't composite (so
+screenshots fail), `portraitDataUrl()` renders the dragon offscreen with
+`preserveDrawingBuffer` and returns a PNG data URL. To get it to disk, POST it to
+a tiny localhost sink and read the file — this is how the dragon silhouette was
+iterated. A ready-made sink script pattern lives in the scratchpad; run a small
+Node HTTP server that base64-decodes the POST body to a `.png`.
 
 ## Conventions
 

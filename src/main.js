@@ -173,7 +173,7 @@ function main() {
       const wings = wingRotations(flight.flapPhase, signal.flap);
       dragon.wingL.rotation.x = wings.left;
       dragon.wingR.rotation.x = wings.right;
-      dragon.jaw.rotation.y = jawOpen(signal.breathing);
+      dragon.jaw.rotation.z = jawOpen(signal.breathing);
 
       // breath resource + fire
       const canBreathe = signal.breathing && game.breath > 0;
@@ -271,6 +271,29 @@ function main() {
       restart: () => {
         resetRun();
         return window.__emberwing.snapshot();
+      },
+      // Render the dragon offscreen (preserveDrawingBuffer) to a PNG data URL so
+      // it can be inspected even when the preview pane isn't compositing.
+      portraitDataUrl: (preset = '3q') => {
+        const r = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+        r.setPixelRatio(1);
+        r.setSize(640, 440);
+        r.shadowMap.enabled = true;
+        const cam = new THREE.PerspectiveCamera(42, 640 / 440, 0.1, 3000);
+        const p = dragon.group.position;
+        const presets = {
+          '3q': [p.x + 15, p.y + 6, p.z + 16],
+          side: [p.x + 1, p.y + 2, p.z + 22],
+          front: [p.x + 24, p.y + 3, p.z + 3],
+          top: [p.x + 2, p.y + 24, p.z + 3],
+        };
+        const c = presets[preset] || presets['3q'];
+        cam.position.set(c[0], c[1], c[2]);
+        cam.lookAt(p.x, p.y + 0.4, p.z);
+        r.render(scene, cam);
+        const url = r.domElement.toDataURL('image/png');
+        r.dispose();
+        return url;
       },
       snapshot: () => ({
         started: input.isStarted(),
