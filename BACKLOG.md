@@ -111,3 +111,7 @@ fixed: pitch is now direct (up = climb)._
 - **E. Persistent best score.** `localStorage` high score shown on the start screen.
 - **F. Second breath element (stretch of task 3).** e.g., frost cone with a different
   colour/effect, unlocked at a late stage.
+- **G. Better dragon silhouette.** Up close the dragon reads a bit like a blob.
+  Improve the procedural model — clearer neck curve, a defined head, tail spines,
+  wing-membrane ribs, sharper proportions — while staying low-poly (mobile perf) and
+  animation-light (no rig). Growth stages could also tweak proportions, not just scale.
