@@ -22,7 +22,7 @@ describe('joystickVector', () => {
 });
 
 describe('combineInput — keyboard', () => {
-  it('W dives (pitch +1), S climbs (pitch -1)', () => {
+  it('W climbs (pitch +1), S dives (pitch -1)', () => {
     expect(combineInput({ KeyW: true }).pitch).toBe(1);
     expect(combineInput({ KeyS: true }).pitch).toBe(-1);
   });
@@ -42,7 +42,7 @@ describe('combineInput — keyboard', () => {
 });
 
 describe('combineInput — touch + pointer', () => {
-  it('joystick up (negative y) pitches like W', () => {
+  it('joystick up (negative y) climbs like W', () => {
     expect(combineInput({}, { joyY: -1 }).pitch).toBe(1);
   });
   it('joystick x drives roll', () => {

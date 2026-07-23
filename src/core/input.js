@@ -42,9 +42,8 @@ export function combineInput(keys = {}, touch = {}, pointer = {}) {
   const joyY = touch.joyY || 0;
 
   return {
-    // Knob up = negative y; combined with KeyW this yields the prototype's
-    // pitch mapping (W / knob-up = nose down). The joystick-Y feel is flagged
-    // in DESIGN.md as a candidate to invert for mobile.
+    // Direct control: pitch +1 = nose up / climb. W and knob-up (negative y)
+    // both climb; S and knob-down dive.
     pitch: clamp(kbPitch - joyY, -1, 1),
     roll: clamp(kbRoll + joyX, -1, 1),
     boost: !!keys.ShiftLeft || !!keys.ShiftRight || !!touch.boost,

@@ -67,6 +67,19 @@ describe('stepFlight — attitude', () => {
     expect(Math.abs(s.roll)).toBeLessThanOrEqual(FLIGHT.rollMax + 1e-9);
   });
 
+  it('direct pitch: +1 climbs (nose up), -1 dives', () => {
+    let up = createFlightState();
+    let down = createFlightState();
+    for (let i = 0; i < 20; i++) {
+      up = stepFlight(up, { pitch: 1, roll: 0, boost: false, flap: false }, 0.05, NO_GROUND);
+      down = stepFlight(down, { pitch: -1, roll: 0, boost: false, flap: false }, 0.05, NO_GROUND);
+    }
+    expect(up.pitch).toBeGreaterThan(0);
+    expect(up.forward.y).toBeGreaterThan(0); // climbing
+    expect(down.pitch).toBeLessThan(0);
+    expect(down.forward.y).toBeLessThan(0); // diving
+  });
+
   it('banking (roll input) turns the heading', () => {
     let s = createFlightState();
     s = stepFlight(s, { ...LEVEL, roll: 1 }, 0.05, NO_GROUND);

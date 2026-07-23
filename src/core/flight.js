@@ -101,8 +101,8 @@ export function stepFlight(state, input, dt, groundHeightAt = () => -Infinity, c
   roll = clamp(roll, -cfg.rollMax, cfg.rollMax);
   const yaw = state.yaw - roll * dt * cfg.yawFromRoll;
 
-  // --- pitch ---
-  let pitch = state.pitch + (-input.pitch * cfg.pitchAccel - state.pitch * cfg.pitchDamp) * dt;
+  // --- pitch --- (direct control: input.pitch +1 = nose up / climb)
+  let pitch = state.pitch + (input.pitch * cfg.pitchAccel - state.pitch * cfg.pitchDamp) * dt;
   pitch = clamp(pitch, -cfg.pitchMax, cfg.pitchMax);
 
   // --- speed ---
