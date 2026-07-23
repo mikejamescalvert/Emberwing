@@ -1,0 +1,36 @@
+{
+  "name": "emberwing",
+  "version": "0.1.0",
+  "description": "A 3D dragon-flight game built on animation-light mechanics (procedural flight, breath-attack combat). Three.js + Vite.",
+  "type": "module",
+  "license": "MIT",
+  "author": "Mike Calvert",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mikejamescalvert/Emberwing.git"
+  },
+  "homepage": "https://mikejamescalvert.github.io/Emberwing/",
+  "engines": {
+    "node": ">=20.19"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "coverage": "vitest run --coverage",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "three": "^0.185.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@vitest/coverage-v8": "^4.1.10",
+    "eslint": "^10.7.0",
+    "globals": "^17.7.0",
+    "vite": "^8.1.5",
+    "vitest": "^4.1.10"
+  }
+}
