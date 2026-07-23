@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import './styles.css';
 
-import { createFlightState, stepFlight, dragonOrientation, flightReadouts } from './core/flight.js';
+import { FLIGHT, createFlightState, stepFlight, dragonOrientation, flightReadouts } from './core/flight.js';
 import { combineInput } from './core/input.js';
 import { CAMERA, desiredCameraPosition, desiredLookTarget, followFactor } from './core/camera.js';
 import { ridgeNoise, makeRng } from './core/world.js';
@@ -169,8 +169,8 @@ function main() {
 
       const stageScale = scaleForStage(game.stage);
 
-      // wings + jaw (procedural, animation-light)
-      const wings = wingRotations(flight.flapPhase, signal.flap);
+      // wings + jaw (procedural, animation-light) — flap vigour follows climb input
+      const wings = wingRotations(flight.flapPhase, signal.pitch > FLIGHT.climbFlapThreshold);
       dragon.wingL.rotation.x = wings.left;
       dragon.wingR.rotation.x = wings.right;
       dragon.jaw.rotation.z = jawOpen(signal.breathing);
@@ -304,6 +304,7 @@ function main() {
         flapPhase: flight.flapPhase,
         wingL: dragon.wingL.rotation.x,
         wingR: dragon.wingR.rotation.x,
+        rot: { x: dragon.group.rotation.x, y: dragon.group.rotation.y, z: dragon.group.rotation.z },
         cam: camera.position.toArray(),
         health: vitality.hp,
         breath: game.breath,

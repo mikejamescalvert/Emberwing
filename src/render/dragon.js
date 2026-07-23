@@ -10,6 +10,10 @@ import { getPalette, DEFAULT_COLOR } from '../core/palette.js';
 // Returns { group, wingL, wingR, jaw, applyColor }.
 export function buildDragon(colorKey = DEFAULT_COLOR) {
   const group = new THREE.Group();
+  // Aircraft-style Euler composition for a +X-facing model: yaw about Y, then
+  // pitch about the lateral Z, then bank about the longitudinal X. Pairs with
+  // core/flight.dragonOrientation — do not change one without the other.
+  group.rotation.order = 'YZX';
   const pal = getPalette(colorKey);
 
   const scaleMat = new THREE.MeshStandardMaterial({ color: pal.scale, roughness: 0.55, flatShading: true });

@@ -4,7 +4,7 @@ import { CAMERA, desiredCameraPosition, desiredLookTarget, followFactor } from '
 import { createFlightState, forwardVector, stepFlight } from '../src/core/flight.js';
 
 const NO_GROUND = () => -Infinity;
-const LEVEL = { pitch: 0, roll: 0, boost: false, flap: false };
+const LEVEL = { pitch: 0, roll: 0, boost: false };
 
 /** Planar "behind" distance from dragon to camera (excludes the fixed height rise). */
 function behindDistance(pos, forward) {
@@ -21,7 +21,7 @@ describe('desiredCameraPosition — runaway-camera regression', () => {
       [0.5, 1.3],
       [-0.7, -2.1],
     ]) {
-      expect(behindDistance({ x: 0, y: 40, z: 0 }, forwardVector(p, y, false))).toBeCloseTo(CAMERA.behindDist, 6);
+      expect(behindDistance({ x: 0, y: 40, z: 0 }, forwardVector(p, y))).toBeCloseTo(CAMERA.behindDist, 6);
     }
   });
 
@@ -33,7 +33,7 @@ describe('desiredCameraPosition — runaway-camera regression', () => {
   });
 
   it('does not mutate the heading vector passed to it', () => {
-    const fwd = forwardVector(0.3, 1.1, false);
+    const fwd = forwardVector(0.3, 1.1);
     const snapshot = { ...fwd };
     desiredCameraPosition({ x: 1, y: 2, z: 3 }, fwd);
     desiredLookTarget({ x: 1, y: 2, z: 3 }, fwd);
@@ -44,7 +44,7 @@ describe('desiredCameraPosition — runaway-camera regression', () => {
 describe('desiredLookTarget', () => {
   it('is lookAhead units ahead of the dragon along its heading', () => {
     const pos = { x: 0, y: 40, z: 0 };
-    const fwd = forwardVector(0, 0, false);
+    const fwd = forwardVector(0, 0);
     const look = desiredLookTarget(pos, fwd);
     expect(length(sub(look, pos))).toBeCloseTo(CAMERA.lookAhead, 6);
   });
@@ -53,7 +53,7 @@ describe('desiredLookTarget', () => {
 describe('camera size scaling (dragon growth)', () => {
   it('pulls the camera back proportionally to sizeScale', () => {
     const pos = { x: 0, y: 40, z: 0 };
-    const fwd = forwardVector(0, 0, false);
+    const fwd = forwardVector(0, 0);
     const cam2 = desiredCameraPosition(pos, fwd, CAMERA, 2);
     const off = sub(cam2, pos);
     off.y -= CAMERA.aboveHeight * 2;
@@ -61,7 +61,7 @@ describe('camera size scaling (dragon growth)', () => {
   });
   it('scales the look-ahead distance too', () => {
     const pos = { x: 0, y: 40, z: 0 };
-    const fwd = forwardVector(0, 0, false);
+    const fwd = forwardVector(0, 0);
     const look = desiredLookTarget(pos, fwd, CAMERA, 3);
     expect(length(sub(look, pos))).toBeCloseTo(CAMERA.lookAhead * 3, 6);
   });

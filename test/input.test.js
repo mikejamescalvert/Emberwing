@@ -26,14 +26,17 @@ describe('combineInput — keyboard', () => {
     expect(combineInput({ KeyW: true }).pitch).toBe(1);
     expect(combineInput({ KeyS: true }).pitch).toBe(-1);
   });
-  it('D rolls right (+1), A rolls left (-1)', () => {
+  it('Space is a climb alias (and stacks with W without exceeding +1)', () => {
+    expect(combineInput({ Space: true }).pitch).toBe(1);
+    expect(combineInput({ KeyW: true, Space: true }).pitch).toBe(1);
+  });
+  it('D turns right (+1), A turns left (-1)', () => {
     expect(combineInput({ KeyD: true }).roll).toBe(1);
     expect(combineInput({ KeyA: true }).roll).toBe(-1);
   });
-  it('Shift boosts, Space flaps', () => {
+  it('Shift boosts', () => {
     expect(combineInput({ ShiftLeft: true }).boost).toBe(true);
     expect(combineInput({ ShiftRight: true }).boost).toBe(true);
-    expect(combineInput({ Space: true }).flap).toBe(true);
   });
   it('opposing keys cancel', () => {
     expect(combineInput({ KeyW: true, KeyS: true }).pitch).toBe(0);
@@ -45,12 +48,12 @@ describe('combineInput — touch + pointer', () => {
   it('joystick up (negative y) climbs like W', () => {
     expect(combineInput({}, { joyY: -1 }).pitch).toBe(1);
   });
-  it('joystick x drives roll', () => {
+  it('joystick right turns right (direct: right goes right)', () => {
     expect(combineInput({}, { joyX: 0.5 }).roll).toBeCloseTo(0.5, 12);
+    expect(combineInput({}, { joyX: -1 }).roll).toBe(-1);
   });
-  it('touch buttons map to boost/flap/breathing', () => {
+  it('touch buttons map to boost/breathing', () => {
     expect(combineInput({}, { boost: true }).boost).toBe(true);
-    expect(combineInput({}, { climb: true }).flap).toBe(true);
     expect(combineInput({}, { fire: true }).breathing).toBe(true);
     expect(combineInput({}, {}, { down: true }).breathing).toBe(true);
   });
@@ -58,9 +61,7 @@ describe('combineInput — touch + pointer', () => {
 
 describe('combineInput — keyboard + touch combine and clamp', () => {
   it('sums keyboard and joystick then clamps to [-1, 1]', () => {
-    // KeyD (+1) plus full-right joystick (+1) must clamp to 1, not 2
     expect(combineInput({ KeyD: true }, { joyX: 1 }).roll).toBe(1);
-    // KeyW (+1) plus full-up joystick (joyY -1 -> +1) clamps to 1
     expect(combineInput({ KeyW: true }, { joyY: -1 }).pitch).toBe(1);
   });
   it('default states produce a neutral signal', () => {
@@ -68,7 +69,6 @@ describe('combineInput — keyboard + touch combine and clamp', () => {
       pitch: 0,
       roll: 0,
       boost: false,
-      flap: false,
       breathing: false,
     });
   });
