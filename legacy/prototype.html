@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<!--
+  ============================================================================
+  EMBERWING — LEGACY PROTOTYPE (archived reference, do not build on directly)
+  ============================================================================
+  This is the newest of three single-file Three.js prototypes recovered from
+  the "Dragon RPG Game" Google Drive folder (source file: index.html, 24,871
+  bytes, created 2026-07-19). It is preserved verbatim (faithful reproduction)
+  as the historical starting point for the modular rewrite under /src.
+
+  KNOWN LATENT BUGS still present in this file (fixed in the /src port):
+   * Vector-mutation / camera bug: updateFlight() calls
+       state.velocity.lerp(forward.multiplyScalar(state.speed), dt * 3)
+     which mutates `forward` in place to length == speed, then reuses it for
+     the camera offset: forward.clone().multiplyScalar(-behindDist). The camera
+     therefore sits speed*9 units back instead of 9 — it flies "miles away" and
+     the distance scales with speed. Fix: clone before the velocity lerp.
+   * No dragon-colour picker (a later chat-only iteration had one; not saved).
+
+  Earlier Drive iterations (differences, for provenance):
+   * v1 (17,249 B): keyboard-only, no touch controls, CapsuleGeometry body,
+     yaw-only chase cam, no error banner.
+   * v2 (22,692 B): adds touch joystick + boost/climb/fire buttons, still
+     CapsuleGeometry (undefined constructor in r128 — silent blank page), still
+     yaw-only chase cam, no error banner.
+   * v3 (this file): swaps CapsuleGeometry -> stretched SphereGeometry, adds the
+     on-screen error banner + WebGL guard + try/catch, moves to a pitch+yaw
+     chase cam (which is where the vector-mutation camera bug was introduced).
+  ============================================================================
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Emberwing — Dragon Flight Prototype</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; touch-action: none; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #0b0818; font-family: 'Georgia', serif; position: fixed; }
+  canvas { display: block; touch-action: none; }
+
+  #hud {
+    position: fixed; inset: 0; pointer-events: none;
+    font-family: 'Trebuchet MS', sans-serif;
+    color: #f2e8d5;
+  }
+  .bar-wrap {
+    position: absolute; left: 24px; width: 220px;
+  }
+  #healthWrap { bottom: 64px; }
+  #breathWrap { bottom: 34px; }
+  .bar-label {
+    font-size: 11px; letter-spacing: 2px; text-transform: uppercase;
+    opacity: 0.75; margin-bottom: 3px;
+  }
+  .bar-bg {
+    width: 100%; height: 10px; background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.25); border-radius: 2px; overflow: hidden;
+  }
+  .bar-fill { height: 100%; transition: width 0.15s ease-out; }
+  #healthFill { background: linear-gradient(90deg, #7c2d2d, #d9534f); }
+  #breathFill { background: linear-gradient(90deg, #c9591a, #ff9b3d); }
+
+  #altitudeWrap {
+    position: absolute; right: 24px; bottom: 34px; width: 160px; text-align: right;
+  }
+  #speedWrap {
+    position: absolute; right: 24px; bottom: 64px; width: 160px; text-align: right;
+  }
+  .stat-val { font-size: 20px; font-weight: bold; color: #ffcf8a; text-shadow: 0 0 8px rgba(255,140,20,0.5); }
+  .stat-label { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; opacity: 0.6; }
+
+  #crosshair {
+    position: absolute; top: 50%; left: 50%; width: 6px; height: 6px;
+    margin: -3px 0 0 -3px; border-radius: 50%; background: rgba(255,220,180,0.6);
+    box-shadow: 0 0 6px rgba(255,180,80,0.8);
+  }
+
+  #title {
+    position: absolute; top: 20px; left: 24px;
+    font-family: 'Georgia', serif; letter-spacing: 3px;
+  }
+  #title h1 { font-size: 22px; color: #ffcf8a; text-shadow: 0 0 12px rgba(255,140,20,0.4); font-weight: normal; }
+  #title p { font-size: 11px; color: #a89bc4; margin-top: 2px; letter-spacing: 1px; }
+
+  #kills {
+    position: absolute; top: 20px; right: 24px; text-align: right;
+    font-size: 12px; color: #d9c9a8; letter-spacing: 1px;
+  }
+  #kills .num { font-size: 26px; color: #ffcf8a; display: block; text-shadow: 0 0 10px rgba(255,140,20,0.5); }
+
+  #controls {
+    position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%);
+    font-size: 11px; color: #8a7fa8; letter-spacing: 1px; text-align: center;
+  }
+
+  #startScreen {
+    position: fixed; inset: 0; background: radial-gradient(ellipse at center, #1a1235 0%, #0b0818 70%);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    color: #f2e8d5; z-index: 10; text-align: center; cursor: pointer;
+  }
+  #startScreen h1 { font-size: 46px; color: #ffcf8a; letter-spacing: 6px; text-shadow: 0 0 24px rgba(255,140,20,0.5); font-weight: normal; }
+  #startScreen p { margin-top: 14px; color: #a89bc4; max-width: 480px; line-height: 1.7; font-family: 'Trebuchet MS', sans-serif; font-size: 14px; }
+  #startScreen .prompt { margin-top: 36px; font-size: 13px; letter-spacing: 3px; color: #ff9b3d; animation: pulse 1.8s ease-in-out infinite; }
+  @keyframes pulse { 0%,100% { opacity: 0.5; } 50% { opacity: 1; } }
+
+  /* ---- Touch controls (shown only on touch/coarse-pointer devices) ---- */
+  #touchControls { display: none; }
+  @media (hover: none) and (pointer: coarse) {
+    #touchControls { display: block; }
+    #controls { display: none; } /* hide desktop key legend */
+  }
+
+  #joyBase {
+    position: absolute; left: 26px; bottom: 26px; width: 130px; height: 130px;
+    border-radius: 50%; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.2);
+    pointer-events: auto; touch-action: none;
+  }
+  #joyKnob {
+    position: absolute; left: 50%; top: 50%; width: 54px; height: 54px; margin: -27px 0 0 -27px;
+    border-radius: 50%; background: rgba(255,207,138,0.35); border: 1px solid rgba(255,207,138,0.6);
+  }
+  #fireBtn {
+    position: absolute; right: 30px; bottom: 34px; width: 92px; height: 92px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(255,140,20,0.5), rgba(255,80,20,0.2));
+    border: 2px solid rgba(255,180,80,0.7); pointer-events: auto; touch-action: none;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Trebuchet MS', sans-serif; font-size: 11px; letter-spacing: 1px; color: #ffe6c2;
+  }
+  #fireBtn.active { background: radial-gradient(circle, rgba(255,140,20,0.85), rgba(255,80,20,0.4)); }
+  #boostBtn {
+    position: absolute; right: 40px; bottom: 138px; width: 70px; height: 40px; border-radius: 20px;
+    background: rgba(120,90,200,0.35); border: 1px solid rgba(180,150,255,0.5);
+    pointer-events: auto; touch-action: none;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Trebuchet MS', sans-serif; font-size: 10px; letter-spacing: 1px; color: #e6dcff;
+  }
+  #boostBtn.active { background: rgba(150,110,255,0.6); }
+  #climbBtn {
+    position: absolute; left: 60px; bottom: 172px; width: 70px; height: 40px; border-radius: 20px;
+    background: rgba(120,90,200,0.35); border: 1px solid rgba(180,150,255,0.5);
+    pointer-events: auto; touch-action: none;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Trebuchet MS', sans-serif; font-size: 10px; letter-spacing: 1px; color: #e6dcff;
+  }
+  #climbBtn.active { background: rgba(150,110,255,0.6); }
+  #errorBanner {
+    display: none; position: fixed; inset: 0; z-index: 999; background: #1a0a0a;
+    color: #ffb3b3; font-family: monospace; font-size: 13px; padding: 20px;
+    overflow: auto; white-space: pre-wrap; line-height: 1.5;
+  }
+</style>
+</head>
+<body>
+
+<div id="errorBanner"></div>
+<script>
+  // Surface any failure visibly — a blank screen on mobile usually means
+  // something threw before the canvas ever appeared, and there's no console to check.
+  function showError(msg) {
+    const el = document.getElementById('errorBanner');
+    el.style.display = 'block';
+    el.textContent = 'EMBERWING FAILED TO START\n\n' + msg +
+      '\n\nUA: ' + navigator.userAgent;
+  }
+  window.addEventListener('error', e => showError((e.message || 'Unknown error') + '\nat ' + (e.filename||'') + ':' + (e.lineno||'')));
+  window.addEventListener('unhandledrejection', e => showError('Promise rejection: ' + e.reason));
+</script>
+
+<div id="startScreen">
+  <h1>EMBERWING</h1>
+  <p>You are a young dragon over a shattered realm. Glide the thermals, breathe fire on the stone sentinels below, and grow stronger with every kill.</p>
+  <div class="prompt">CLICK TO TAKE FLIGHT</div>
+</div>
+
+<div id="hud" style="display:none;">
+  <div id="title"><h1>EMBERWING</h1><p>a young dragon, aloft</p></div>
+  <div id="kills"><span class="num" id="killCount">0</span>sentinels felled</div>
+
+  <div class="bar-wrap" id="healthWrap">
+    <div class="bar-label">Vitality</div>
+    <div class="bar-bg"><div class="bar-fill" id="healthFill" style="width:100%"></div></div>
+  </div>
+  <div class="bar-wrap" id="breathWrap">
+    <div class="bar-label">Breath</div>
+    <div class="bar-bg"><div class="bar-fill" id="breathFill" style="width:100%"></div></div>
+  </div>
+
+  <div id="speedWrap"><div class="stat-val" id="speedVal">0</div><div class="stat-label">Speed</div></div>
+  <div id="altitudeWrap"><div class="stat-val" id="altVal">0</div><div class="stat-label">Altitude</div></div>
+
+  <div id="crosshair"></div>
+  <div id="controls">W/S PITCH · A/D ROLL-TURN · SHIFT BOOST · SPACE FLAP-CLIMB · HOLD MOUSE TO BREATHE FIRE</div>
+
+  <div id="touchControls">
+    <div id="joyBase"><div id="joyKnob"></div></div>
+    <div id="climbBtn">FLAP</div>
+    <div id="boostBtn">BOOST</div>
+    <div id="fireBtn">BREATHE<br>FIRE</div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+/* ==============================================================
+   EMBERWING — dragon flight prototype
+   Animation-light by design: dragon is procedural geometry with
+   a simple wing-flap cycle (sine-driven), not a rigged skeleton.
+   Combat is entirely breath-attack (particle cone), no melee anim.
+   ============================================================== */
+
+let scene, camera, renderer, clock;
+let dragon, wingL, wingR, jaw;
+let sentinels = [];
+let fireParticles = [];
+let started = false;
+const camLookTarget = new THREE.Vector3();
+
+const state = {
+  pos: new THREE.Vector3(0, 40, 0),
+  yaw: 0, pitch: 0, roll: 0,
+  speed: 18, minSpeed: 8, maxSpeed: 55,
+  velocity: new THREE.Vector3(),
+  health: 100, breath: 100,
+  breathing: false,
+  kills: 0,
+  flapPhase: 0,
+};
+
+const keys = {};
+let mouseDown = false;
+window.addEventListener('keydown', e => keys[e.code] = true);
+window.addEventListener('keyup', e => keys[e.code] = false);
+window.addEventListener('mousedown', () => { if (started) mouseDown = true; });
+window.addEventListener('mouseup', () => mouseDown = false);
+
+function startGame() {
+  if (started) return;
+  document.getElementById('startScreen').style.display = 'none';
+  document.getElementById('hud').style.display = 'block';
+  started = true;
+}
+document.getElementById('startScreen').addEventListener('click', startGame);
+document.getElementById('startScreen').addEventListener('touchend', e => { e.preventDefault(); startGame(); });
+
+// ---------------- Touch controls ----------------
+const touch = { joyX: 0, joyY: 0, fire: false, boost: false, climb: false };
+let joyTouchId = null;
+
+const joyBase = document.getElementById('joyBase');
+const joyKnob = document.getElementById('joyKnob');
+const JOY_RADIUS = 55;
+
+function joyStart(e) {
+  const t = e.changedTouches[0];
+  joyTouchId = t.identifier;
+  updateJoy(t);
+}
+function joyMove(e) {
+  for (const t of e.changedTouches) {
+    if (t.identifier === joyTouchId) updateJoy(t);
+  }
+}
+function joyEnd(e) {
+  for (const t of e.changedTouches) {
+    if (t.identifier === joyTouchId) {
+      joyTouchId = null;
+      touch.joyX = 0; touch.joyY = 0;
+      joyKnob.style.transform = 'translate(0px, 0px)';
+    }
+  }
+}
+function updateJoy(t) {
+  const rect = joyBase.getBoundingClientRect();
+  const cx = rect.left + rect.width / 2, cy = rect.top + rect.height / 2;
+  let dx = t.clientX - cx, dy = t.clientY - cy;
+  const dist = Math.min(Math.hypot(dx, dy), JOY_RADIUS);
+  const ang = Math.atan2(dy, dx);
+  dx = Math.cos(ang) * dist; dy = Math.sin(ang) * dist;
+  joyKnob.style.transform = `translate(${dx}px, ${dy}px)`;
+  touch.joyX = dx / JOY_RADIUS;   // -1..1, right positive
+  touch.joyY = dy / JOY_RADIUS;   // -1..1, down positive
+}
+joyBase.addEventListener('touchstart', e => { e.preventDefault(); joyStart(e); }, { passive: false });
+joyBase.addEventListener('touchmove', e => { e.preventDefault(); joyMove(e); }, { passive: false });
+joyBase.addEventListener('touchend', e => { e.preventDefault(); joyEnd(e); }, { passive: false });
+joyBase.addEventListener('touchcancel', e => { e.preventDefault(); joyEnd(e); }, { passive: false });
+
+function bindHoldButton(el, onDown, onUp) {
+  el.addEventListener('touchstart', e => { e.preventDefault(); el.classList.add('active'); onDown(); }, { passive: false });
+  el.addEventListener('touchend', e => { e.preventDefault(); el.classList.remove('active'); onUp(); }, { passive: false });
+  el.addEventListener('touchcancel', e => { e.preventDefault(); el.classList.remove('active'); onUp(); }, { passive: false });
+}
+bindHoldButton(document.getElementById('fireBtn'), () => touch.fire = true, () => touch.fire = false);
+bindHoldButton(document.getElementById('boostBtn'), () => touch.boost = true, () => touch.boost = false);
+bindHoldButton(document.getElementById('climbBtn'), () => touch.climb = true, () => touch.climb = false);
+
+if (typeof THREE === 'undefined') {
+  showError('Three.js did not load from the CDN (cdnjs.cloudflare.com). This is likely a network/content-blocking issue on this device or browser.');
+} else {
+  function webglAvailable() {
+    try {
+      const c = document.createElement('canvas');
+      return !!(window.WebGLRenderingContext && (c.getContext('webgl') || c.getContext('experimental-webgl')));
+    } catch (e) { return false; }
+  }
+  if (!webglAvailable()) {
+    showError('WebGL is not available in this browser/preview context, so the 3D scene cannot render. Try opening this file directly in your phone\'s browser (not an in-app preview) — Safari or Chrome both support WebGL.');
+  } else {
+    try {
+      init();
+      animate();
+    } catch (e) {
+      showError((e.message || e) + (e.stack ? '\n\n' + e.stack : ''));
+    }
+  }
+}
+
+function init() {
+  scene = new THREE.Scene();
+  scene.fog = new THREE.FogExp2(0x2a1f4a, 0.0032);
+  scene.background = new THREE.Color(0x1a1235);
+
+  camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 3000);
+
+  renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.shadowMap.enabled = true;
+  document.body.appendChild(renderer.domElement);
+
+  clock = new THREE.Clock();
+
+  // --- Lighting: dusk palette ---
+  const hemi = new THREE.HemisphereLight(0x8a7fd9, 0x2a1f1a, 0.9);
+  scene.add(hemi);
+  const sun = new THREE.DirectionalLight(0xffb877, 1.2);
+  sun.position.set(200, 300, 100);
+  sun.castShadow = true;
+  sun.shadow.camera.left = -300; sun.shadow.camera.right = 300;
+  sun.shadow.camera.top = 300; sun.shadow.camera.bottom = -300;
+  sun.shadow.mapSize.set(2048, 2048);
+  scene.add(sun);
+
+  buildTerrain();
+  buildDragon();
+  buildSentinels(14);
+
+  camera.position.copy(state.pos).add(new THREE.Vector3(-9, 3.0, 0));
+  camLookTarget.copy(state.pos);
+  camera.lookAt(camLookTarget);
+
+  window.addEventListener('resize', onResize);
+}
+
+function onResize() {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+}
+
+// ---------------- Terrain ----------------
+function buildTerrain() {
+  const size = 2000, seg = 120;
+  const geo = new THREE.PlaneGeometry(size, size, seg, seg);
+  geo.rotateX(-Math.PI / 2);
+  const posAttr = geo.attributes.position;
+  for (let i = 0; i < posAttr.count; i++) {
+    const x = posAttr.getX(i), z = posAttr.getZ(i);
+    const h = ridgeNoise(x, z);
+    posAttr.setY(i, h);
+  }
+  geo.computeVertexNormals();
+  const mat = new THREE.MeshStandardMaterial({ color: 0x33294a, roughness: 1, flatShading: true });
+  const ground = new THREE.Mesh(geo, mat);
+  ground.receiveShadow = true;
+  scene.add(ground);
+
+  // scattered ruin pillars for atmosphere / obstacles
+  for (let i = 0; i < 40; i++) {
+    const x = (Math.random() - 0.5) * 1600;
+    const z = (Math.random() - 0.5) * 1600;
+    const h = ridgeNoise(x, z);
+    const height = 15 + Math.random() * 40;
+    const pillar = new THREE.Mesh(
+      new THREE.CylinderGeometry(2 + Math.random()*2, 3 + Math.random()*2, height, 6),
+      new THREE.MeshStandardMaterial({ color: 0x4a3d5c, flatShading: true, roughness: 0.9 })
+    );
+    pillar.position.set(x, h + height/2, z);
+    pillar.castShadow = true;
+    pillar.receiveShadow = true;
+    scene.add(pillar);
+  }
+}
+
+function ridgeNoise(x, z) {
+  return Math.sin(x * 0.006) * 18 + Math.cos(z * 0.005) * 18 + Math.sin((x+z) * 0.003) * 10;
+}
+
+// ---------------- Dragon (procedural, animation-light) ----------------
+function buildDragon() {
+  dragon = new THREE.Group();
+
+  const scaleMat = new THREE.MeshStandardMaterial({ color: 0x6a2f8f, roughness: 0.6, flatShading: true });
+  const bellyMat = new THREE.MeshStandardMaterial({ color: 0xd9a441, roughness: 0.7, flatShading: true });
+  const wingMat  = new THREE.MeshStandardMaterial({ color: 0x3a1f5c, roughness: 0.8, side: THREE.DoubleSide, flatShading: true });
+
+  // body — stretched sphere (CapsuleGeometry isn't available in this Three.js build)
+  const body = new THREE.Mesh(new THREE.SphereGeometry(1.6, 10, 8), scaleMat);
+  body.scale.set(2.4, 1, 1);
+  body.castShadow = true;
+  dragon.add(body);
+
+  const belly = new THREE.Mesh(new THREE.SphereGeometry(1.1, 10, 8), bellyMat);
+  belly.scale.set(2.3, 1, 1);
+  belly.position.y = -0.6;
+  dragon.add(belly);
+
+  // neck + head
+  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 1.3, 2.4, 6), scaleMat);
+  neck.position.set(3, 0.6, 0);
+  neck.rotation.z = -0.5;
+  dragon.add(neck);
+
+  const head = new THREE.Group();
+  head.position.set(4.3, 1.5, 0);
+  const skull = new THREE.Mesh(new THREE.ConeGeometry(0.9, 2.2, 6), scaleMat);
+  skull.rotation.z = -Math.PI / 2;
+  head.add(skull);
+  jaw = new THREE.Mesh(new THREE.ConeGeometry(0.5, 1.4, 5), bellyMat);
+  jaw.rotation.z = -Math.PI / 2;
+  jaw.position.set(0.3, -0.35, 0);
+  head.add(jaw);
+  // horns
+  [-0.4, 0.4].forEach(zOff => {
+    const horn = new THREE.Mesh(new THREE.ConeGeometry(0.15, 1, 4), bellyMat);
+    horn.position.set(-0.3, 0.6, zOff);
+    horn.rotation.z = Math.PI / 6;
+    head.add(horn);
+  });
+  dragon.add(head);
+
+  // wings (flat shapes, animated via simple rotation — no skeletal rig needed)
+  const wingShape = new THREE.Shape();
+  wingShape.moveTo(0, 0);
+  wingShape.lineTo(4.5, 1.2);
+  wingShape.lineTo(5.5, -0.5);
+  wingShape.lineTo(3.5, -1.8);
+  wingShape.lineTo(1.5, -1.2);
+  wingShape.lineTo(0, 0);
+  const wingGeo = new THREE.ShapeGeometry(wingShape);
+
+  wingL = new THREE.Mesh(wingGeo, wingMat);
+  wingL.position.set(-0.3, 0.5, 1.3);
+  wingL.castShadow = true;
+  dragon.add(wingL);
+
+  wingR = new THREE.Mesh(wingGeo, wingMat);
+  wingR.position.set(-0.3, 0.5, -1.3);
+  wingR.scale.z = -1;
+  wingR.castShadow = true;
+  dragon.add(wingR);
+
+  // tail
+  const tail = new THREE.Mesh(new THREE.ConeGeometry(0.9, 5, 6), scaleMat);
+  tail.rotation.z = Math.PI / 2;
+  tail.position.set(-4.5, -0.2, 0);
+  dragon.add(tail);
+
+  dragon.position.copy(state.pos);
+  scene.add(dragon);
+}
+
+// ---------------- Sentinels (stationary crystal enemies) ----------------
+function buildSentinels(count) {
+  for (let i = 0; i < count; i++) {
+    const x = (Math.random() - 0.5) * 1400;
+    const z = (Math.random() - 0.5) * 1400;
+    const groundY = ridgeNoise(x, z);
+    const group = new THREE.Group();
+
+    const base = new THREE.Mesh(
+      new THREE.CylinderGeometry(2.5, 3, 3, 6),
+      new THREE.MeshStandardMaterial({ color: 0x3d3550, flatShading: true })
+    );
+    group.add(base);
+
+    const crystal = new THREE.Mesh(
+      new THREE.OctahedronGeometry(2.2, 0),
+      new THREE.MeshStandardMaterial({ color: 0x5ecbe0, emissive: 0x1a6a80, flatShading: true })
+    );
+    crystal.position.y = 3.5;
+    crystal.userData.isCrystal = true;
+    group.add(crystal);
+
+    group.position.set(x, groundY + 1.5, z);
+    group.userData = { alive: true, hp: 30, crystal, spinSeed: Math.random() * 10 };
+    scene.add(group);
+    sentinels.push(group);
+  }
+}
+
+// ---------------- Fire breath ----------------
+function spawnFireParticle() {
+  const geo = new THREE.SphereGeometry(0.35 + Math.random() * 0.3, 5, 5);
+  const mat = new THREE.MeshBasicMaterial({
+    color: Math.random() > 0.5 ? 0xff7b1a : 0xffcf5a,
+    transparent: true, opacity: 0.9
+  });
+  const p = new THREE.Mesh(geo, mat);
+
+  const headWorld = new THREE.Vector3();
+  jaw.getWorldPosition(headWorld);
+  p.position.copy(headWorld);
+
+  const forward = new THREE.Vector3(1, 0, 0).applyQuaternion(dragon.quaternion);
+  const spread = new THREE.Vector3((Math.random()-0.5)*0.3, (Math.random()-0.5)*0.3, (Math.random()-0.5)*0.3);
+  p.userData.vel = forward.clone().addScaledVector(spread, 1).multiplyScalar(1.4).add(state.velocity.clone().multiplyScalar(0.3));
+  p.userData.life = 0.9;
+  scene.add(p);
+  fireParticles.push(p);
+}
+
+function updateFireParticles(dt) {
+  for (let i = fireParticles.length - 1; i >= 0; i--) {
+    const p = fireParticles[i];
+    p.position.addScaledVector(p.userData.vel, dt * 20);
+    p.userData.life -= dt * 1.4;
+    p.scale.setScalar(Math.max(0.1, p.userData.life));
+    p.material.opacity = Math.max(0, p.userData.life);
+
+    if (p.userData.life <= 0) {
+      scene.remove(p);
+      fireParticles.splice(i, 1);
+      continue;
+    }
+    // collision vs sentinels
+    for (const s of sentinels) {
+      if (!s.userData.alive) continue;
+      if (p.position.distanceTo(s.position) < 4) {
+        s.userData.hp -= 14;
+        if (s.userData.hp <= 0) killSentinel(s);
+        scene.remove(p);
+        fireParticles.splice(i, 1);
+        break;
+      }
+    }
+  }
+}
+
+function killSentinel(s) {
+  s.userData.alive = false;
+  scene.remove(s);
+  sentinels.splice(sentinels.indexOf(s), 1);
+  state.kills++;
+  document.getElementById('killCount').textContent = state.kills;
+  // occasionally respawn a new one elsewhere to keep the world alive
+  setTimeout(() => buildSentinels(1), 3000);
+}
+
+// ---------------- Flight controller ----------------
+function updateFlight(dt) {
+  let pitchInput = (keys['KeyW'] ? 1 : 0) - (keys['KeyS'] ? 1 : 0);
+  let rollInput  = (keys['KeyD'] ? 1 : 0) - (keys['KeyA'] ? 1 : 0);
+  pitchInput = THREE.MathUtils.clamp(pitchInput - touch.joyY, -1, 1); // knob up (negative y) = pitch up
+  rollInput  = THREE.MathUtils.clamp(rollInput + touch.joyX, -1, 1);
+  const boosting = !!keys['ShiftLeft'] || !!keys['ShiftRight'] || touch.boost;
+  const flapping = !!keys['Space'] || touch.climb;
+  state.breathing = mouseDown || touch.fire;
+
+  state.roll += (rollInput * 1.6 - state.roll * 2.2) * dt;
+  state.roll = THREE.MathUtils.clamp(state.roll, -1.1, 1.1);
+  state.yaw -= state.roll * dt * 1.1; // banking turns
+  state.pitch += (-pitchInput * 0.9 - state.pitch * 1.8) * dt;
+  state.pitch = THREE.MathUtils.clamp(state.pitch, -0.8, 0.8);
+
+  const targetSpeed = boosting ? state.maxSpeed : (18 + (flapping ? 6 : 0));
+  state.speed += (targetSpeed - state.speed) * dt * 1.5;
+  state.speed = THREE.MathUtils.clamp(state.speed, state.minSpeed, state.maxSpeed);
+
+  const forward = new THREE.Vector3(
+    Math.cos(state.pitch) * Math.cos(state.yaw),
+    Math.sin(state.pitch) + (flapping ? 0.18 : -0.04),
+    Math.cos(state.pitch) * Math.sin(state.yaw)
+  ).normalize();
+
+  state.velocity.lerp(forward.multiplyScalar(state.speed), dt * 3);
+  state.pos.addScaledVector(state.velocity, dt);
+
+  // keep above terrain
+  const groundY = ridgeNoise(state.pos.x, state.pos.z) + 6;
+  if (state.pos.y < groundY) state.pos.y = groundY;
+  if (state.pos.y > 400) state.pos.y = 400;
+
+  dragon.position.copy(state.pos);
+  dragon.rotation.set(0,0,0);
+  dragon.rotation.y = -state.yaw;
+  dragon.rotation.z = state.roll * 0.9;
+  dragon.rotation.x = state.pitch * 0.6;
+
+  // wing flap cycle — simple sine drive, faster when flapping/boosting
+  const flapSpeed = flapping ? 9 : (boosting ? 6 : 3.2);
+  state.flapPhase += dt * flapSpeed;
+  const flapAmt = flapping ? 1.1 : 0.55;
+  wingL.rotation.z = Math.sin(state.flapPhase) * flapAmt;
+  wingR.rotation.z = -Math.sin(state.flapPhase) * flapAmt;
+
+  // jaw opens slightly while breathing
+  jaw.rotation.y = state.breathing ? -0.4 : 0;
+
+  // camera: third-person chase — locked behind the dragon along its actual heading
+  // (pitch + yaw, not just yaw), so it holds position through dives/climbs too.
+  const behindDist = 9, aboveHeight = 3.0;
+  const camOffset = forward.clone().multiplyScalar(-behindDist);
+  camOffset.y += aboveHeight;
+  const desiredCamPos = state.pos.clone().add(camOffset);
+  camera.position.lerp(desiredCamPos, Math.min(1, dt * 9));
+  camLookTarget.lerp(state.pos.clone().addScaledVector(forward, 14), Math.min(1, dt * 9));
+  camera.lookAt(camLookTarget);
+
+  // breath resource
+  if (state.breathing && state.breath > 0) {
+    state.breath = Math.max(0, state.breath - dt * 28);
+    spawnFireParticle();
+  } else if (!state.breathing) {
+    state.breath = Math.min(100, state.breath + dt * 12);
+  }
+  if (state.breath <= 0) state.breathing = false;
+
+  // HUD
+  document.getElementById('healthFill').style.width = state.health + '%';
+  document.getElementById('breathFill').style.width = state.breath + '%';
+  document.getElementById('speedVal').textContent = Math.round(state.speed * 3.2);
+  document.getElementById('altVal').textContent = Math.round(state.pos.y);
+}
+
+function updateSentinels(dt) {
+  sentinels.forEach(s => {
+    s.userData.spinSeed += dt;
+    s.userData.crystal.rotation.y = s.userData.spinSeed * 0.8;
+    s.userData.crystal.position.y = 3.5 + Math.sin(s.userData.spinSeed * 1.5) * 0.3;
+  });
+}
+
+// ---------------- Main loop ----------------
+function animate() {
+  requestAnimationFrame(animate);
+  const dt = Math.min(clock.getDelta(), 0.05);
+
+  if (started) {
+    updateFlight(dt);
+    updateFireParticles(dt);
+    updateSentinels(dt);
+  }
+
+  renderer.render(scene, camera);
+}
+</script>
+</body>
+</html>
