@@ -10,9 +10,17 @@ rigged/skeletal animation.
 
 ---
 
-## P1 — Growth loop MVP (makes the game have a point)
+## P1 — Growth loop MVP ✅ SHIPPED
 
-### 1. Emberstone drops + fly-through collection
+_The hunt → burn → grow loop is implemented, tested, and deployed: emberstone
+motes drop from burned sentinels, fly-through collection grants xp, growth stages
+(Hatchling → Fledgling → Drake → Wyrm → Elder) scale the dragon up, upgrade the
+breath, and pull the camera back, with a HUD growth meter. See `core/emberstone.js`,
+`core/growth.js`, `render/emberstone.js`, and the wiring in `main.js`._
+
+**Next up: P2 (stakes) — start with task 4.**
+
+### 1. Emberstone drops + fly-through collection ✅ Done
 - **What:** When a sentinel is burned down, spawn a handful of glowing "emberstone"
   motes that drift outward and slowly fall. Flying the dragon through one absorbs it.
 - **Where:** new `core/emberstone.js` (pure: spawn positions/velocities from a seed,
@@ -22,7 +30,7 @@ rigged/skeletal animation.
   them and increments a collected count; pure logic is unit-tested (spawn count,
   motion, pickup radius).
 
-### 2. Growth meter + dragon growth
+### 2. Growth meter + dragon growth ✅ Done
 - **What:** Collected emberstone fills a growth meter; crossing a threshold advances
   a growth stage and scales the dragon up.
 - **Where:** `core/growth.js` (pure: xp→stage thresholds, `stageForXp`, per-stage
@@ -32,7 +40,7 @@ rigged/skeletal animation.
   and stage lookup are unit-tested. Consider pulling the camera back per stage so the
   bigger dragon stays framed (see DESIGN open questions).
 
-### 3. Breath upgrades per stage
+### 3. Breath upgrades per stage ✅ Done
 - **What:** Each growth stage widens/lengthens/strengthens the breath (spread, range,
   damage) — read from the growth stage.
 - **Where:** extend `core/combat.js` (make particle spread/life/damage a function of
