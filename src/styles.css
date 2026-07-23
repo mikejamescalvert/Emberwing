@@ -137,13 +137,6 @@ canvas { display: block; touch-action: none; }
   font-family: 'Trebuchet MS', sans-serif; font-size: 10px; letter-spacing: 1px; color: #e6dcff;
 }
 #boostBtn.active { background: rgba(150,110,255,0.6); }
-#climbBtn {
-  position: absolute; left: 60px; bottom: 172px; width: 70px; height: 40px; border-radius: 20px;
-  background: rgba(120,90,200,0.35); border: 1px solid rgba(180,150,255,0.5);
-  pointer-events: auto; touch-action: none; display: flex; align-items: center; justify-content: center;
-  font-family: 'Trebuchet MS', sans-serif; font-size: 10px; letter-spacing: 1px; color: #e6dcff;
-}
-#climbBtn.active { background: rgba(150,110,255,0.6); }
 
 #errorBanner {
   display: none; position: fixed; inset: 0; z-index: 999; background: #1a0a0a;

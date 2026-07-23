@@ -99,7 +99,6 @@ export function setupInput({ onStart, onColor } = {}) {
   // --- hold buttons ---
   bindHold('fireBtn', () => { touch.fire = true; }, () => { touch.fire = false; });
   bindHold('boostBtn', () => { touch.boost = true; }, () => { touch.boost = false; });
-  bindHold('climbBtn', () => { touch.climb = true; }, () => { touch.climb = false; });
 
   return { keys, touch, pointer, isStarted: () => started };
 }
