@@ -8,6 +8,12 @@ export function createFireSystem(scene) {
   const jawWorld = new THREE.Vector3();
   const forward = new THREE.Vector3();
 
+  // Current breath stats (upgraded per growth stage via setBreath()).
+  let breath = { damage: COMBAT.breathDamage, spread: 0.3, life: COMBAT.particleLife };
+  function setBreath(next) {
+    breath = next;
+  }
+
   /** Spawn one ember at the jaw, flung along the dragon's facing. */
   function spawn(jaw, dragonQuat, dragonVel) {
     const geo = new THREE.SphereGeometry(0.35 + Math.random() * 0.3, 5, 5);
@@ -22,14 +28,11 @@ export function createFireSystem(scene) {
     p.position.copy(jawWorld);
 
     forward.set(1, 0, 0).applyQuaternion(dragonQuat);
-    const spread = new THREE.Vector3(
-      (Math.random() - 0.5) * 0.3,
-      (Math.random() - 0.5) * 0.3,
-      (Math.random() - 0.5) * 0.3,
-    );
+    const s = breath.spread;
+    const spread = new THREE.Vector3((Math.random() - 0.5) * s, (Math.random() - 0.5) * s, (Math.random() - 0.5) * s);
     // (forward + spread) * 1.4 + dragonVel * 0.3  — matches core/combat.spawnParticleVelocity
     const vel = forward.clone().add(spread).multiplyScalar(1.4).addScaledVector(dragonVel, 0.3);
-    p.userData = { vel, life: COMBAT.particleLife };
+    p.userData = { vel, life: breath.life };
 
     scene.add(p);
     particles.push(p);
@@ -55,7 +58,7 @@ export function createFireSystem(scene) {
       for (const s of sentinels) {
         if (!s.alive) continue;
         if (isHit(p.position, s.pos)) {
-          s.hp -= COMBAT.breathDamage;
+          s.hp -= breath.damage;
           if (s.hp <= 0) {
             s.alive = false;
             kills++;
@@ -77,5 +80,5 @@ export function createFireSystem(scene) {
     particles.splice(i, 1);
   }
 
-  return { spawn, update };
+  return { spawn, update, setBreath };
 }
