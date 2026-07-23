@@ -20,6 +20,16 @@ breath, and pull the camera back, with a HUD growth meter. See `core/emberstone.
 
 **Next up: P3 (win state + polish) and P4 (rival wyrmlings).**
 
+## Controls overhaul ✅ SHIPPED (post-P2)
+
+_Deep dive from play feedback found the turn was genuinely mirrored (prototype
+sign bug), the body pose used swapped axes, steering had a two-stage lag, and
+FLAP was a redundant verb. Now: direct arcade steering (left is left), honest
+banking via Euler `'YZX'`, dive-fast/climb-slow energy, no flap button (Space =
+climb alias). See DESIGN.md "Controls — the deep dive" and the regression tests
+in `test/flight.test.js`. Task 7 (Invert-Y toggle) remains an optional
+nice-to-have for sim-style players._
+
 ### 1. Emberstone drops + fly-through collection ✅ Done
 - **What:** When a sentinel is burned down, spawn a handful of glowing "emberstone"
   motes that drift outward and slowly fall. Flying the dragon through one absorbs it.

@@ -28,6 +28,41 @@ The "what doesn't work yet" list below is kept for history; the stakes/progressi
 gaps it names are now addressed. Next design focus: P3/P4 (rival wyrmlings,
 beacons, tuning).
 
+## Controls — the deep dive (shipped)
+
+Play feedback: *"if I press left it should go left"*, *"I don't understand the
+flap wings"*, general motion confusion on mobile and web. All four root causes
+were real, and all were inherited from the prototype:
+
+1. **The turn was mirrored.** The flight model derived yaw from bank with a
+   flipped sign (`yaw -= roll`), so right input steered the heading to −Z —
+   which is screen-LEFT behind the dragon. Left/right were genuinely swapped,
+   not merely floaty. *Fix:* `yaw += bank · turnRate` — right is right. Guarded
+   by steering-direction regression tests (right ⇒ +Z, left ⇒ −Z).
+2. **The body pose lied.** The model faces +X, where nose-up is `rotation.z` and
+   bank is `rotation.x` — but the code used the +Z-facing mapping (pitch→x,
+   roll→z). Verified with Three's own Euler math: steering visually reared the
+   nose ~50° and climbing visually banked the body. Players read body language
+   before HUDs, so this constantly contradicted the motion. *Fix:* Euler order
+   `'YZX'` (yaw → pitch → bank, aircraft-style) with the axes mapped straight.
+3. **Two-stage steering lag.** Input built roll over ~½ s, roll drove yaw, and
+   the turn carried on after release while roll decayed. *Fix:* direct arcade
+   steering — the stick sets the bank with a ~0.12 s ease and yaw rate follows
+   the bank immediately (~97°/s at full stick); release levels out in ~⅓ s and
+   the turn stops. Banking is now honest cosmetics: it shows the turn, it does
+   not gate it.
+4. **FLAP was a redundant verb.** It overlapped climb (the stick) and speed
+   (BOOST) and cost a fourth touch target. *Cut.* The dragon now flaps
+   vigorously on its own when climbing or boosting (animation follows intent),
+   and the speed system gained an energy feel instead: **dive to gain speed,
+   climb to bleed it** (`diveSpeedGain`). `Space` remains as a climb alias.
+
+**The model in one line: point where you want to go.** Three verbs — steer,
+boost, breathe. Mobile is one joystick + two buttons.
+
+Tunables in `FLIGHT` (`src/core/flight.js`): `turnRate`, `steerLambda`,
+`bankMax`, `pitchMaxInput`, `pitchLambda`, `diveSpeedGain`.
+
 ## Honest assessment of the current loop (original prototype)
 
 **What already feels good:**

@@ -15,12 +15,15 @@ See [DESIGN.md](DESIGN.md).
 
 ## Controls
 
+Steering is **direct** — point where you want to go. Left goes left, right goes
+right, up climbs, down dives; the banking lean is cosmetic. Dive to gain speed,
+climb to bleed it.
+
 | Action | Desktop | Mobile |
 |--------|---------|--------|
-| Pitch (dive / climb) | `W` / `S` | Joystick up / down |
-| Roll & banking turn | `A` / `D` | Joystick left / right |
+| Climb / dive | `W` / `S` (`Space` also climbs) | Joystick up / down |
+| Turn left / right | `A` / `D` | Joystick left / right |
 | Boost | `Shift` | **BOOST** button |
-| Flap (climb + speed) | `Space` | **FLAP** button |
 | Breathe fire | Hold mouse | Hold **BREATHE FIRE** button |
 
 Pick your dragon's colour on the start screen, then click / tap to take flight.

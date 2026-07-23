@@ -63,7 +63,7 @@ guard this — keep those tests.
 ### Data flow (one frame)
 
 ```
-combineInput(keys, touch, pointer)      // core/input  -> {pitch,roll,boost,flap,breathing}
+combineInput(keys, touch, pointer)      // core/input  -> {pitch,roll,boost,breathing}
   -> stepFlight(state, input, dt, ground) // core/flight -> new immutable state (+ unit heading)
   -> render: dragon position/orientation, wingRotations, jawOpen
   -> camera: desiredCameraPosition/LookTarget (constant follow distance)
@@ -118,6 +118,17 @@ Node HTTP server that base64-decodes the POST body to a `.png`.
 - **Wing flap axis** — wings are flat membranes reoriented so they hinge on
   `rotation.x`; the right wing is mirrored (`scale.z = -1`) so it takes the
   opposite-signed rotation (`core/dragonAnim.wingRotations` returns `{left, right:-left}`).
+- **Steering direction + body axes are load-bearing.** The dragon model faces
+  +X: right input must INCREASE yaw (heading toward +Z = screen right), nose
+  up/down is `rotation.z`, bank is `rotation.x`, and the group's Euler order is
+  `'YZX'` (set in `render/dragon.js`, consumed by `core/flight.dragonOrientation`).
+  The prototype had the yaw sign flipped (right turned left!) and the body axes
+  swapped (the +Z-facing mapping) — both are locked by tests in
+  `test/flight.test.js` ("steering direction", "dragonOrientation"). Don't
+  "simplify" either without reading those tests first.
+- **Controls are direct arcade steering** — stick sets bank (fast ease), yaw
+  follows bank immediately; there is no separate flap verb (climb input drives
+  the wing animation; dive-to-gain-speed replaces the flap speed bonus).
 - **Mobile is first-class, not bolted on** — viewport meta, `touch-action: none`,
   the `@media (hover: none) and (pointer: coarse)` gate, and `touchstart/move/end`
   with `preventDefault` all matter. Test changes against a mobile viewport.

@@ -46,6 +46,16 @@ the differences of v1/v2 are documented below (they are strictly predecessors).
   to flap in visual sync. (In v1–v3 the flap is on `rotation.z` of a flat
   `ShapeGeometry`; the `/src` port reorients the geometry and hinges on the correct
   axis, with a unit test on the sign relationship.)
+- **Turn direction inverted (latent in all three iterations; found 2026-07-23).**
+  `state.yaw -= state.roll * dt * 1.1` has the wrong sign for this coordinate frame
+  (+X-facing model, screen-right = +Z), so right input turned the dragon
+  screen-LEFT. Fixed in `/src` (`yaw += bank·turnRate`) with steering-direction
+  regression tests.
+- **Body-pose axes swapped (latent in all three iterations; found 2026-07-23).**
+  `dragon.rotation.z = roll` / `dragon.rotation.x = pitch` is the mapping for a
+  +Z-facing model; on this +X-facing model `rotation.z` is nose-up and `rotation.x`
+  is bank — so steering visually reared the nose and climbing visually banked the
+  body. Fixed in `/src` with Euler order `'YZX'` and the axes mapped straight.
 
 ## The chat-only "v4"
 
