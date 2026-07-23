@@ -7,10 +7,13 @@ import { CAMERA, desiredCameraPosition, desiredLookTarget, followFactor } from '
 import { ridgeNoise, makeRng } from './core/world.js';
 import { wingRotations, jawOpen } from './core/dragonAnim.js';
 import { COMBAT, stepBreath } from './core/combat.js';
+import { EMBERSTONE } from './core/emberstone.js';
+import { stageForXp, scaleForStage, breathForStage, growthProgress } from './core/growth.js';
 import { DEFAULT_COLOR } from './core/palette.js';
 import { buildDragon } from './render/dragon.js';
 import { addLighting, buildTerrain, buildSentinels } from './render/scene.js';
 import { createFireSystem } from './render/particles.js';
+import { createEmberstoneField } from './render/emberstone.js';
 import { createHud } from './render/hud.js';
 import { setupInput } from './input/bindings.js';
 
@@ -54,11 +57,20 @@ function main() {
   scene.add(dragon.group);
 
   const fire = createFireSystem(scene);
+  const ember = createEmberstoneField(scene, rng);
   const hud = createHud();
 
   // --- game state ---
   let flight = createFlightState();
-  const game = { breath: COMBAT.breathMax, health: 100, kills: 0 };
+  const game = { breath: COMBAT.breathMax, health: 100, kills: 0, xp: 0, stage: 0 };
+
+  // Apply a growth stage: scale the dragon and upgrade its breath.
+  function setStage(stage) {
+    game.stage = stage;
+    dragon.group.scale.setScalar(scaleForStage(stage));
+    fire.setBreath(breathForStage(stage));
+  }
+  setStage(0);
 
   const input = setupInput({
     onColor: (key) => dragon.applyColor(key),
@@ -98,6 +110,12 @@ function main() {
     }, COMBAT.respawnDelayMs);
   }
 
+  // On a kill: shatter the sentinel into emberstone, then respawn one elsewhere.
+  function onKill(dead) {
+    ember.burst(dead.pos);
+    respawnLater(dead);
+  }
+
   function step(dt) {
     if (input.isStarted()) {
       const signal = combineInput(input.keys, input.touch, input.pointer);
@@ -114,13 +132,22 @@ function main() {
       const canBreathe = signal.breathing && game.breath > 0;
       game.breath = stepBreath(game.breath, signal.breathing, dt).breath;
       if (canBreathe) fire.spawn(dragon.jaw, dragon.group.quaternion, flight.velocity);
-      game.kills += fire.update(dt, sentinels, respawnLater);
+      game.kills += fire.update(dt, sentinels, onKill);
 
-      // camera (constant follow distance — see core/camera)
+      // emberstone: burned sentinels drop motes; fly through them to grow
+      const gained = ember.update(dt, dragon.group.position, EMBERSTONE.pickupRadius * scaleForStage(game.stage));
+      if (gained > 0) {
+        game.xp += gained * EMBERSTONE.xpPerMote;
+        const nextStage = stageForXp(game.xp);
+        if (nextStage !== game.stage) setStage(nextStage);
+      }
+
+      // camera (constant follow distance; pulls back as the dragon grows)
+      const camScale = scaleForStage(game.stage);
       const f = followFactor(dt);
-      const camPos = desiredCameraPosition(flight.pos, flight.forward);
+      const camPos = desiredCameraPosition(flight.pos, flight.forward, CAMERA, camScale);
       camera.position.lerp(scratch.set(camPos.x, camPos.y, camPos.z), f);
-      const look = desiredLookTarget(flight.pos, flight.forward);
+      const look = desiredLookTarget(flight.pos, flight.forward, CAMERA, camScale);
       lookTarget.lerp(scratch.set(look.x, look.y, look.z), f);
       camera.lookAt(lookTarget);
 
@@ -132,12 +159,15 @@ function main() {
       }
 
       const readouts = flightReadouts(flight);
+      const prog = growthProgress(game.xp);
       hud.update({
         health: game.health,
         breath: game.breath,
         speed: readouts.speed,
         altitude: readouts.altitude,
         kills: game.kills,
+        growth: prog.ratio,
+        stageName: prog.name,
       });
     }
 
@@ -166,6 +196,13 @@ function main() {
         for (let i = 0; i < n; i++) step(dt);
         return window.__emberwing.snapshot();
       },
+      addXp: (n) => {
+        game.xp += n;
+        const s = stageForXp(game.xp);
+        if (s !== game.stage) setStage(s);
+        return window.__emberwing.snapshot();
+      },
+      burstHere: () => ember.burst({ ...dragon.group.position }),
       snapshot: () => ({
         started: input.isStarted(),
         pos: { x: flight.pos.x, y: flight.pos.y, z: flight.pos.z },
@@ -177,6 +214,10 @@ function main() {
         cam: camera.position.toArray(),
         breath: game.breath,
         kills: game.kills,
+        xp: game.xp,
+        stage: game.stage,
+        dragonScale: dragon.group.scale.x,
+        motes: ember.count(),
         sentinels: sentinels.length,
         sceneChildren: scene.children.length,
       }),

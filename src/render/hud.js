@@ -4,15 +4,19 @@ export function createHud() {
   const el = {
     health: document.getElementById('healthFill'),
     breath: document.getElementById('breathFill'),
+    growth: document.getElementById('growthFill'),
+    stage: document.getElementById('stageName'),
     speed: document.getElementById('speedVal'),
     alt: document.getElementById('altVal'),
     kills: document.getElementById('killCount'),
   };
 
   return {
-    update({ health, breath, speed, altitude, kills }) {
+    update({ health, breath, speed, altitude, kills, growth, stageName }) {
       el.health.style.width = health + '%';
       el.breath.style.width = breath + '%';
+      el.growth.style.width = growth * 100 + '%';
+      el.stage.textContent = stageName;
       el.speed.textContent = speed;
       el.alt.textContent = altitude;
       el.kills.textContent = kills;
