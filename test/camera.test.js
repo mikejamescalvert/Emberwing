@@ -50,6 +50,23 @@ describe('desiredLookTarget', () => {
   });
 });
 
+describe('camera size scaling (dragon growth)', () => {
+  it('pulls the camera back proportionally to sizeScale', () => {
+    const pos = { x: 0, y: 40, z: 0 };
+    const fwd = forwardVector(0, 0, false);
+    const cam2 = desiredCameraPosition(pos, fwd, CAMERA, 2);
+    const off = sub(cam2, pos);
+    off.y -= CAMERA.aboveHeight * 2;
+    expect(length(off)).toBeCloseTo(CAMERA.behindDist * 2, 6);
+  });
+  it('scales the look-ahead distance too', () => {
+    const pos = { x: 0, y: 40, z: 0 };
+    const fwd = forwardVector(0, 0, false);
+    const look = desiredLookTarget(pos, fwd, CAMERA, 3);
+    expect(length(sub(look, pos))).toBeCloseTo(CAMERA.lookAhead * 3, 6);
+  });
+});
+
 describe('followFactor', () => {
   it('is 0 at dt=0 and approaches 1 for large dt', () => {
     expect(followFactor(0)).toBe(0);

@@ -18,19 +18,23 @@ export const CAMERA = {
   far: 3000,
 };
 
-/** Desired camera world position: behindDist behind along heading, aboveHeight up. */
-export function desiredCameraPosition(pos, forward, cfg = CAMERA) {
-  const behind = scale(forward, -cfg.behindDist); // forward not mutated
+/**
+ * Desired camera world position: behindDist behind along heading, aboveHeight up.
+ * `sizeScale` (>= 1) pulls the camera back proportionally as the dragon grows, so
+ * a bigger dragon stays framed.
+ */
+export function desiredCameraPosition(pos, forward, cfg = CAMERA, sizeScale = 1) {
+  const behind = scale(forward, -cfg.behindDist * sizeScale); // forward not mutated
   return {
     x: pos.x + behind.x,
-    y: pos.y + behind.y + cfg.aboveHeight,
+    y: pos.y + behind.y + cfg.aboveHeight * sizeScale,
     z: pos.z + behind.z,
   };
 }
 
 /** Desired look-at target: lookAhead ahead of the dragon along its heading. */
-export function desiredLookTarget(pos, forward, cfg = CAMERA) {
-  return addScaled(pos, forward, cfg.lookAhead);
+export function desiredLookTarget(pos, forward, cfg = CAMERA, sizeScale = 1) {
+  return addScaled(pos, forward, cfg.lookAhead * sizeScale);
 }
 
 /** Frame-rate-independent lerp factor for easing the camera toward its target. */
