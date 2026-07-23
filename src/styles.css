@@ -1,0 +1,117 @@
+/* Emberwing UI — HUD, start screen, touch controls, error banner.
+   Ported from the prototype, plus the dragon-colour picker. Kept in one file so
+   the render loop never touches layout; JS only toggles a few classes/widths. */
+
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; touch-action: none; }
+html, body { width: 100%; height: 100%; overflow: hidden; background: #0b0818; font-family: 'Georgia', serif; position: fixed; }
+canvas { display: block; touch-action: none; }
+
+#hud {
+  position: fixed; inset: 0; pointer-events: none;
+  font-family: 'Trebuchet MS', sans-serif; color: #f2e8d5;
+}
+#hud[hidden] { display: none; }
+
+.bar-wrap { position: absolute; left: 24px; width: 220px; }
+#healthWrap { bottom: 64px; }
+#breathWrap { bottom: 34px; }
+.bar-label { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; opacity: 0.75; margin-bottom: 3px; }
+.bar-bg {
+  width: 100%; height: 10px; background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.25); border-radius: 2px; overflow: hidden;
+}
+.bar-fill { height: 100%; transition: width 0.15s ease-out; }
+#healthFill { background: linear-gradient(90deg, #7c2d2d, #d9534f); }
+#breathFill { background: linear-gradient(90deg, #c9591a, #ff9b3d); }
+
+#altitudeWrap { position: absolute; right: 24px; bottom: 34px; width: 160px; text-align: right; }
+#speedWrap { position: absolute; right: 24px; bottom: 64px; width: 160px; text-align: right; }
+.stat-val { font-size: 20px; font-weight: bold; color: #ffcf8a; text-shadow: 0 0 8px rgba(255,140,20,0.5); }
+.stat-label { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; opacity: 0.6; }
+
+#crosshair {
+  position: absolute; top: 50%; left: 50%; width: 6px; height: 6px;
+  margin: -3px 0 0 -3px; border-radius: 50%; background: rgba(255,220,180,0.6);
+  box-shadow: 0 0 6px rgba(255,180,80,0.8);
+}
+
+#title { position: absolute; top: 20px; left: 24px; font-family: 'Georgia', serif; letter-spacing: 3px; }
+#title h1 { font-size: 22px; color: #ffcf8a; text-shadow: 0 0 12px rgba(255,140,20,0.4); font-weight: normal; }
+#title p { font-size: 11px; color: #a89bc4; margin-top: 2px; letter-spacing: 1px; }
+
+#kills { position: absolute; top: 20px; right: 24px; text-align: right; font-size: 12px; color: #d9c9a8; letter-spacing: 1px; }
+#kills .num { font-size: 26px; color: #ffcf8a; display: block; text-shadow: 0 0 10px rgba(255,140,20,0.5); }
+
+#controls {
+  position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%);
+  font-size: 11px; color: #8a7fa8; letter-spacing: 1px; text-align: center;
+}
+
+/* ---- Start screen ---- */
+#startScreen {
+  position: fixed; inset: 0; background: radial-gradient(ellipse at center, #1a1235 0%, #0b0818 70%);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  color: #f2e8d5; z-index: 10; text-align: center; cursor: pointer; padding: 20px;
+}
+#startScreen[hidden] { display: none; }
+#startScreen h1 { font-size: 46px; color: #ffcf8a; letter-spacing: 6px; text-shadow: 0 0 24px rgba(255,140,20,0.5); font-weight: normal; }
+#startScreen p { margin-top: 14px; color: #a89bc4; max-width: 480px; line-height: 1.7; font-family: 'Trebuchet MS', sans-serif; font-size: 14px; }
+#startScreen .prompt { margin-top: 32px; font-size: 13px; letter-spacing: 3px; color: #ff9b3d; animation: pulse 1.8s ease-in-out infinite; }
+@keyframes pulse { 0%,100% { opacity: 0.5; } 50% { opacity: 1; } }
+
+/* ---- Colour picker ---- */
+.color-picker { margin-top: 30px; pointer-events: auto; }
+.picker-label { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; opacity: 0.7; margin-bottom: 12px; color: #a89bc4; font-family: 'Trebuchet MS', sans-serif; }
+.swatches { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+.swatch {
+  width: 42px; height: 42px; border-radius: 50%; cursor: pointer;
+  border: 2px solid rgba(255,255,255,0.25);
+  transition: transform 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
+}
+.swatch:hover { transform: scale(1.1); }
+.swatch.selected { border-color: #ffcf8a; box-shadow: 0 0 14px rgba(255,180,80,0.7); transform: scale(1.15); }
+
+/* ---- Touch controls (only on touch/coarse-pointer devices) ---- */
+#touchControls { display: none; }
+@media (hover: none) and (pointer: coarse) {
+  #touchControls { display: block; }
+  #controls { display: none; } /* hide desktop key legend */
+}
+
+#joyBase {
+  position: absolute; left: 26px; bottom: 26px; width: 130px; height: 130px;
+  border-radius: 50%; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.2);
+  pointer-events: auto; touch-action: none;
+}
+#joyKnob {
+  position: absolute; left: 50%; top: 50%; width: 54px; height: 54px; margin: -27px 0 0 -27px;
+  border-radius: 50%; background: rgba(255,207,138,0.35); border: 1px solid rgba(255,207,138,0.6);
+}
+#fireBtn {
+  position: absolute; right: 30px; bottom: 34px; width: 92px; height: 92px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,140,20,0.5), rgba(255,80,20,0.2));
+  border: 2px solid rgba(255,180,80,0.7); pointer-events: auto; touch-action: none;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Trebuchet MS', sans-serif; font-size: 11px; letter-spacing: 1px; color: #ffe6c2;
+}
+#fireBtn.active { background: radial-gradient(circle, rgba(255,140,20,0.85), rgba(255,80,20,0.4)); }
+#boostBtn {
+  position: absolute; right: 40px; bottom: 138px; width: 70px; height: 40px; border-radius: 20px;
+  background: rgba(120,90,200,0.35); border: 1px solid rgba(180,150,255,0.5);
+  pointer-events: auto; touch-action: none; display: flex; align-items: center; justify-content: center;
+  font-family: 'Trebuchet MS', sans-serif; font-size: 10px; letter-spacing: 1px; color: #e6dcff;
+}
+#boostBtn.active { background: rgba(150,110,255,0.6); }
+#climbBtn {
+  position: absolute; left: 60px; bottom: 172px; width: 70px; height: 40px; border-radius: 20px;
+  background: rgba(120,90,200,0.35); border: 1px solid rgba(180,150,255,0.5);
+  pointer-events: auto; touch-action: none; display: flex; align-items: center; justify-content: center;
+  font-family: 'Trebuchet MS', sans-serif; font-size: 10px; letter-spacing: 1px; color: #e6dcff;
+}
+#climbBtn.active { background: rgba(150,110,255,0.6); }
+
+#errorBanner {
+  display: none; position: fixed; inset: 0; z-index: 999; background: #1a0a0a;
+  color: #ffb3b3; font-family: monospace; font-size: 13px; padding: 20px;
+  overflow: auto; white-space: pre-wrap; line-height: 1.5;
+}

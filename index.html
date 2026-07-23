@@ -4,19 +4,51 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
   <title>Emberwing — Dragon Flight</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; touch-action: none; }
-    html, body { width: 100%; height: 100%; overflow: hidden; background: #0b0818; position: fixed; }
-    canvas { display: block; touch-action: none; }
-    #errorBanner {
-      display: none; position: fixed; inset: 0; z-index: 999; background: #1a0a0a;
-      color: #ffb3b3; font-family: monospace; font-size: 13px; padding: 20px;
-      overflow: auto; white-space: pre-wrap; line-height: 1.5;
-    }
-  </style>
 </head>
 <body>
+  <!-- Visible failure path: a blank canvas on mobile has no console to check. -->
   <div id="errorBanner"></div>
+
+  <!-- Start screen with dragon-colour picker -->
+  <div id="startScreen">
+    <h1>EMBERWING</h1>
+    <p>You are a young dragon over a shattered realm. Glide the thermals, breathe
+       fire on the stone sentinels below, and grow stronger with every kill.</p>
+    <div class="color-picker">
+      <div class="picker-label">Choose your scales</div>
+      <div class="swatches" id="swatches"></div>
+    </div>
+    <div class="prompt" id="startPrompt">TAP TO TAKE FLIGHT</div>
+  </div>
+
+  <!-- Heads-up display (hidden until the game starts) -->
+  <div id="hud" hidden>
+    <div id="title"><h1>EMBERWING</h1><p>a young dragon, aloft</p></div>
+    <div id="kills"><span class="num" id="killCount">0</span>sentinels felled</div>
+
+    <div class="bar-wrap" id="healthWrap">
+      <div class="bar-label">Vitality</div>
+      <div class="bar-bg"><div class="bar-fill" id="healthFill" style="width:100%"></div></div>
+    </div>
+    <div class="bar-wrap" id="breathWrap">
+      <div class="bar-label">Breath</div>
+      <div class="bar-bg"><div class="bar-fill" id="breathFill" style="width:100%"></div></div>
+    </div>
+
+    <div id="speedWrap"><div class="stat-val" id="speedVal">0</div><div class="stat-label">Speed</div></div>
+    <div id="altitudeWrap"><div class="stat-val" id="altVal">0</div><div class="stat-label">Altitude</div></div>
+
+    <div id="crosshair"></div>
+    <div id="controls">W/S PITCH · A/D ROLL-TURN · SHIFT BOOST · SPACE FLAP-CLIMB · HOLD MOUSE TO BREATHE FIRE</div>
+
+    <div id="touchControls">
+      <div id="joyBase"><div id="joyKnob"></div></div>
+      <div id="climbBtn">FLAP</div>
+      <div id="boostBtn">BOOST</div>
+      <div id="fireBtn">BREATHE<br>FIRE</div>
+    </div>
+  </div>
+
   <script type="module" src="/src/main.js"></script>
 </body>
 </html>
