@@ -12,7 +12,23 @@ mechanic would need convincing rigged animation to feel good, it's the wrong
 mechanic — find another that hits the same fantasy. This pillar is *why* the game
 exists; see [AGENTS.md](AGENTS.md).
 
-## Honest assessment of the current loop
+## Status — what's built
+
+The loop below was written against the *original* prototype (flight + inert
+targets). Since then, **P1 (growth)** and **P2 (stakes)** have shipped:
+
+- **Hunt → burn → grow:** sentinels drop emberstone; fly-through collection grows
+  the dragon Hatchling → Elder, scaling it up and upgrading its breath.
+- **Stakes:** red **wardstones** fire slow, dodgeable flak; hits drain vitality,
+  which regenerates after a quiet spell; zero vitality ends the run.
+- **A run:** death shows a scored summary (emberstone + kills + stage) with restart.
+- **Controls:** pitch is **direct** (up = climb) on keyboard and touch.
+
+The "what doesn't work yet" list below is kept for history; the stakes/progression
+gaps it names are now addressed. Next design focus: P3/P4 (rival wyrmlings,
+beacons, tuning).
+
+## Honest assessment of the current loop (original prototype)
 
 **What already feels good:**
 - **Flight in motion.** Banking turns, the flap/boost speed change, and diving
@@ -89,10 +105,10 @@ identical. Differences are only in the input surface and performance budget.
 - **Controls:**
   - Desktop: `WASD` + `Shift`/`Space` + hold-mouse-to-breathe.
   - Mobile: left-thumb joystick, right-side **FLAP / BOOST / BREATHE FIRE** buttons.
-  - **Open decision — joystick Y.** Today "joystick up = nose down (dive)," matching
-    aircraft convention and the keyboard. For casual mobile, "up = climb" may read
-    better. Ship an **Invert Y** toggle, or default mobile to up-=-climb. Decide
-    with a real device in hand.
+  - **Resolved — pitch is direct (up = climb).** W / joystick-up climb; S /
+    joystick-down dive, on both platforms. (The prototype used the inverted
+    aircraft convention, which players found confusing.) An optional **Invert Y**
+    toggle for sim-style players remains a nice-to-have (BACKLOG task 7).
 - **Performance budget (target: 60 fps on a mid-range phone, ~2020 GPU):**
   - Keep geometry low-poly (already the case). Cap active fire particles.
   - `pixelRatio` clamped to 2 (done). Consider dropping to 1.5 on low-end.

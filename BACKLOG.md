@@ -18,7 +18,7 @@ motes drop from burned sentinels, fly-through collection grants xp, growth stage
 breath, and pull the camera back, with a HUD growth meter. See `core/emberstone.js`,
 `core/growth.js`, `render/emberstone.js`, and the wiring in `main.js`._
 
-**Next up: P2 (stakes) — start with task 4.**
+**Next up: P3 (win state + polish) and P4 (rival wyrmlings).**
 
 ### 1. Emberstone drops + fly-through collection ✅ Done
 - **What:** When a sentinel is burned down, spawn a handful of glowing "emberstone"
@@ -47,9 +47,15 @@ breath, and pull the camera back, with a HUD growth meter. See `core/emberstone.
   stage) + the growth stat table; wire in `render/particles.js`.
 - **Done when:** higher stages visibly change the breath; the stat mapping is tested.
 
-## P2 — Stakes
+## P2 — Stakes ✅ SHIPPED
 
-### 4. Wardstone flak + vitality damage
+_Red wardstone sentinels fire slow, dodgeable flak; hits drain vitality, which
+regenerates after a quiet spell; zero vitality ends the run with a scored summary
+(emberstone + kills + stage) and a restart. Flak arms once you grow past hatchling.
+See `core/flak.js`, `core/vitality.js`, `core/score.js`, `render/flak.js`. Also
+fixed: pitch is now direct (up = climb)._
+
+### 4. Wardstone flak + vitality damage ✅ Done
 - **What:** A fraction of sentinels are "wardstones" that fire slow, dodgeable
   projectiles at the dragon. A hit drains vitality; vitality regenerates slowly when
   not recently hit.
@@ -60,7 +66,7 @@ breath, and pull the camera back, with a HUD growth meter. See `core/emberstone.
   vitality regenerates; all numeric logic is unit-tested. **No enemy rig** — a moving
   projectile + a muzzle-flash particle only.
 
-### 5. Death → run summary + score
+### 5. Death → run summary + score ✅ Done
 - **What:** Vitality reaching zero ends the run and shows a summary (emberstone,
   sentinels felled, stage reached, score) with a restart.
 - **Where:** `core/score.js` (pure score calc + tests); a summary overlay in

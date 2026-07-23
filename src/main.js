@@ -9,11 +9,15 @@ import { wingRotations, jawOpen } from './core/dragonAnim.js';
 import { COMBAT, stepBreath } from './core/combat.js';
 import { EMBERSTONE } from './core/emberstone.js';
 import { stageForXp, scaleForStage, breathForStage, growthProgress } from './core/growth.js';
+import { FLAK } from './core/flak.js';
+import { createVitality, damageVitality, stepVitality, isDead } from './core/vitality.js';
+import { computeScore } from './core/score.js';
 import { DEFAULT_COLOR } from './core/palette.js';
 import { buildDragon } from './render/dragon.js';
 import { addLighting, buildTerrain, buildSentinels } from './render/scene.js';
 import { createFireSystem } from './render/particles.js';
 import { createEmberstoneField } from './render/emberstone.js';
+import { createFlakSystem } from './render/flak.js';
 import { createHud } from './render/hud.js';
 import { setupInput } from './input/bindings.js';
 
@@ -58,11 +62,13 @@ function main() {
 
   const fire = createFireSystem(scene);
   const ember = createEmberstoneField(scene, rng);
+  const flak = createFlakSystem(scene, rng);
   const hud = createHud();
 
   // --- game state ---
   let flight = createFlightState();
-  const game = { breath: COMBAT.breathMax, health: 100, kills: 0, xp: 0, stage: 0 };
+  let vitality = createVitality();
+  const game = { breath: COMBAT.breathMax, kills: 0, xp: 0, stage: 0, over: false };
 
   // Apply a growth stage: scale the dragon and upgrade its breath.
   function setStage(stage) {
@@ -116,11 +122,52 @@ function main() {
     respawnLater(dead);
   }
 
+  // --- run over / restart ---
+  const gameOverEl = document.getElementById('gameOver');
+  const objectiveEl = document.getElementById('objective');
+  function showGameOver() {
+    const score = computeScore({ emberstone: game.xp, kills: game.kills, stage: game.stage });
+    document.getElementById('finalScore').textContent = score;
+    document.getElementById('finalStage').textContent = growthProgress(game.xp).name;
+    document.getElementById('finalKills').textContent = game.kills;
+    document.getElementById('finalEmber').textContent = game.xp;
+    gameOverEl.hidden = false;
+  }
+  function endRun() {
+    if (game.over) return;
+    game.over = true;
+    showGameOver();
+  }
+  function resetRun() {
+    flight = createFlightState();
+    vitality = createVitality();
+    game.breath = COMBAT.breathMax;
+    game.kills = 0;
+    game.xp = 0;
+    game.over = false;
+    setStage(0);
+    fire.clear();
+    ember.clear();
+    flak.clear();
+    for (const s of sentinels) scene.remove(s.group);
+    sentinels = buildSentinels(scene, rng, 14);
+    syncDragon();
+    gameOverEl.hidden = true;
+  }
+  const restartBtn = document.getElementById('restartBtn');
+  restartBtn.addEventListener('click', resetRun);
+  restartBtn.addEventListener('touchend', (e) => {
+    e.preventDefault();
+    resetRun();
+  });
+
   function step(dt) {
-    if (input.isStarted()) {
+    if (input.isStarted() && !game.over) {
       const signal = combineInput(input.keys, input.touch, input.pointer);
       flight = stepFlight(flight, signal, dt, ridgeNoise);
       syncDragon();
+
+      const stageScale = scaleForStage(game.stage);
 
       // wings + jaw (procedural, animation-light)
       const wings = wingRotations(flight.flapPhase, signal.flap);
@@ -135,19 +182,29 @@ function main() {
       game.kills += fire.update(dt, sentinels, onKill);
 
       // emberstone: burned sentinels drop motes; fly through them to grow
-      const gained = ember.update(dt, dragon.group.position, EMBERSTONE.pickupRadius * scaleForStage(game.stage));
+      const gained = ember.update(dt, dragon.group.position, EMBERSTONE.pickupRadius * stageScale);
       if (gained > 0) {
         game.xp += gained * EMBERSTONE.xpPerMote;
         const nextStage = stageForXp(game.xp);
         if (nextStage !== game.stage) setStage(nextStage);
       }
 
+      // wardstone flak + vitality (flak arms once you've grown past hatchling)
+      const flakDamage = flak.update(dt, {
+        sentinels,
+        dragonPos: dragon.group.position,
+        hitRadius: FLAK.hitRadius * stageScale,
+        armed: game.stage >= 1,
+      });
+      if (flakDamage > 0) vitality = damageVitality(vitality, flakDamage);
+      vitality = stepVitality(vitality, dt);
+      if (isDead(vitality)) endRun();
+
       // camera (constant follow distance; pulls back as the dragon grows)
-      const camScale = scaleForStage(game.stage);
       const f = followFactor(dt);
-      const camPos = desiredCameraPosition(flight.pos, flight.forward, CAMERA, camScale);
+      const camPos = desiredCameraPosition(flight.pos, flight.forward, CAMERA, stageScale);
       camera.position.lerp(scratch.set(camPos.x, camPos.y, camPos.z), f);
-      const look = desiredLookTarget(flight.pos, flight.forward, CAMERA, camScale);
+      const look = desiredLookTarget(flight.pos, flight.forward, CAMERA, stageScale);
       lookTarget.lerp(scratch.set(look.x, look.y, look.z), f);
       camera.lookAt(lookTarget);
 
@@ -161,7 +218,7 @@ function main() {
       const readouts = flightReadouts(flight);
       const prog = growthProgress(game.xp);
       hud.update({
-        health: game.health,
+        health: vitality.hp,
         breath: game.breath,
         speed: readouts.speed,
         altitude: readouts.altitude,
@@ -169,6 +226,9 @@ function main() {
         growth: prog.ratio,
         stageName: prog.name,
       });
+
+      // onboarding objective fades once the first sentinel falls
+      objectiveEl.style.opacity = game.kills === 0 ? '1' : '0';
     }
 
     renderer.render(scene, camera);
@@ -203,8 +263,18 @@ function main() {
         return window.__emberwing.snapshot();
       },
       burstHere: () => ember.burst({ ...dragon.group.position }),
+      damage: (n) => {
+        vitality = damageVitality(vitality, n);
+        if (isDead(vitality)) endRun();
+        return window.__emberwing.snapshot();
+      },
+      restart: () => {
+        resetRun();
+        return window.__emberwing.snapshot();
+      },
       snapshot: () => ({
         started: input.isStarted(),
+        over: game.over,
         pos: { x: flight.pos.x, y: flight.pos.y, z: flight.pos.z },
         speed: flight.speed,
         yaw: flight.yaw,
@@ -212,12 +282,14 @@ function main() {
         wingL: dragon.wingL.rotation.x,
         wingR: dragon.wingR.rotation.x,
         cam: camera.position.toArray(),
+        health: vitality.hp,
         breath: game.breath,
         kills: game.kills,
         xp: game.xp,
         stage: game.stage,
         dragonScale: dragon.group.scale.x,
         motes: ember.count(),
+        flak: flak.count(),
         sentinels: sentinels.length,
         sceneChildren: scene.children.length,
       }),
