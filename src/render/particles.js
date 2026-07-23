@@ -80,5 +80,14 @@ export function createFireSystem(scene) {
     particles.splice(i, 1);
   }
 
-  return { spawn, update, setBreath };
+  function clear() {
+    for (const p of particles) {
+      scene.remove(p);
+      p.geometry.dispose();
+      p.material.dispose();
+    }
+    particles.length = 0;
+  }
+
+  return { spawn, update, setBreath, clear };
 }

@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { ridgeNoise, scatter } from '../core/world.js';
 import { createSentinel } from '../core/combat.js';
+import { FLAK, randomFireInterval } from '../core/flak.js';
 
 /** Dusk lighting. Returns the sun so callers can tweak/track it if needed. */
 export function addLighting(scene) {
@@ -59,16 +60,30 @@ export function buildSentinels(scene, rng, count) {
     );
     group.add(base);
 
+    // A fraction are wardstones — they fire flak. Marked by a menacing red crystal.
+    const isWardstone = rng() < FLAK.wardstoneFraction;
     const crystal = new THREE.Mesh(
       new THREE.OctahedronGeometry(2.2, 0),
-      new THREE.MeshStandardMaterial({ color: 0x5ecbe0, emissive: 0x1a6a80, flatShading: true }),
+      new THREE.MeshStandardMaterial({
+        color: isWardstone ? 0xff5a3c : 0x5ecbe0,
+        emissive: isWardstone ? 0x902512 : 0x1a6a80,
+        flatShading: true,
+      }),
     );
     crystal.position.y = 3.5;
     group.add(crystal);
 
     group.position.set(x, groundY + 1.5, z);
     scene.add(group);
-    sentinels.push({ group, crystal, pos: group.position, ...createSentinel(), spinSeed: rng() * 10 });
+    sentinels.push({
+      group,
+      crystal,
+      pos: group.position,
+      ...createSentinel(),
+      spinSeed: rng() * 10,
+      isWardstone,
+      cooldown: randomFireInterval(rng),
+    });
   }
   return sentinels;
 }

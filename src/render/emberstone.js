@@ -47,5 +47,13 @@ export function createEmberstoneField(scene, rng) {
     motes.splice(i, 1);
   }
 
-  return { burst, update, count: () => motes.length };
+  function clear() {
+    for (const m of motes) {
+      scene.remove(m.mesh);
+      m.mat.dispose();
+    }
+    motes.length = 0;
+  }
+
+  return { burst, update, clear, count: () => motes.length };
 }
